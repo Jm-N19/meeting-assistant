@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多Agent智能会议助手</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#1a1d27; --panel2:#22263a; --line:#2c3150;
+    --fg:#e6e9f2; --muted:#9aa3c0; --acc:#6c8cff; --acc2:#8a6cff;
+    --ok:#34d399; --warn:#fbbf24; --err:#f87171;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--fg);line-height:1.6}
+  .wrap{max-width:1000px;margin:0 auto;padding:24px}
+  h1{font-size:22px;margin:0 0 4px;background:linear-gradient(90deg,var(--acc),var(--acc2));
+     -webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+        padding:18px;margin-bottom:18px}
+  .card h2{font-size:15px;margin:0 0 12px;color:var(--acc)}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  input[type=text],select{width:100%;padding:9px 12px;border:1px solid var(--line);
+        border-radius:8px;background:var(--panel2);color:var(--fg);font-size:14px;outline:none}
+  input:focus{ border-color:var(--acc)}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row>*{flex:1;min-width:180px}
+  button{background:linear-gradient(90deg,var(--acc),var(--acc2));color:#fff;border:none;
+        padding:10px 18px;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
+  .btn-group{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .meta{font-size:13px;color:var(--muted);margin-top:10px}
+  .meta b{color:var(--ok)}
+  .status{font-size:13px;color:var(--warn);margin-top:8px;min-height:20px}
+  #tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .tab{padding:7px 14px;border:1px solid var(--line);border-radius:8px;cursor:pointer;
+       font-size:13px;color:var(--muted);background:var(--panel)}
+  .tab.active{color:#fff;background:var(--panel2);border-color:var(--acc)}
+  .panel{display:none}
+  .panel.active{display:block}
+  pre{background:#0b0d13;border:1px solid var(--line);border-radius:8px;padding:14px;
+      overflow:auto;font-size:12.5px;color:var(--fg);max-height:480px;white-space:pre-wrap;
+      word-break:break-word}
+  .seg{margin-bottom:10px;padding:10px;border-left:3px solid var(--acc);
+       background:var(--panel2);border-radius:6px}
+  .seg .sp{color:var(--acc2);font-weight:700;font-size:13px}
+  .seg .tx{margin-top:4px}
+  .seg .ts{color:var(--muted);font-size:12px}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;
+         background:var(--panel2);border:1px solid var(--line);margin:2px 4px 2px 0}
+  .err{color:var(--err)}
+  .small{color:var(--muted);font-size:12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted)}
+  .pill{font-size:11px;padding:2px 8px;border-radius:20px}
+  .p-high{background:rgba(248,113,113,.15);color:var(--err)}
+  .p-medium{background:rgba(251,191,36,.15);color:var(--warn)}
+  .p-low{background:rgba(52,211,153,.15);color:var(--ok)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>多Agent智能会议助手</h1>
+  <div class="sub">LangGraph · WhisperX · FastAPI · DeepSeek — 会议全流程自动化</div>
+
+  <!-- 创建会议 -->
+  <div class="card">
+    <h2>1. 创建会议</h2>
+    <div class="row">
+      <div><label>会议标题</label><input type="text" id="title" value="产品周会" placeholder="会议标题"></div>
+      <div><label>参会人(逗号分隔)</label><input type="text" id="participants" value="Alice, Bob, Carol" placeholder="Alice, Bob"></div>
+      <div><label>语言</label>
+        <select id="language"><option value="zh" selected>中文</option><option value="en">English</option></select>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button onclick="createMeeting()">创建会议</button>
+    </div>
+    <div class="meta" id="meetingMeta">尚未创建会议</div>
+  </div>
+
+  <!-- 运行 -->
+  <div class="card">
+    <h2>2. 分析会议</h2>
+    <div class="btn-group">
+      <button id="btnDemo" onclick="runDemo()" disabled>运行演示模式</button>
+      <label class="ghost" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:9px 18px;border:1px solid var(--line);border-radius:8px;font-size:14px">
+        上传录音
+        <input type="file" id="audioFile" accept=".wav,.mp3,.m4a,.flac,.ogg" style="display:none" onchange="uploadAudio()">
+      </label>
+    </div>
+    <div class="status" id="runStatus"></div>
+    <div class="meta" id="runMeta"></div>
+  </div>
+
+  <!-- 结果 -->
+  <div class="card">
+    <h2>3. 分析结果</h2>
+    <div id="tabs">
+      <div class="tab active" data-p="transcript" onclick="showTab(this)">转写</div>
+      <div class="tab" data-p="summary" onclick="showTab(this)">摘要</div>
+      <div class="tab" data-p="actions" onclick="showTab(this)">待办</div>
+      <div class="tab" data-p="insights" onclick="showTab(this)">洞察</div>
+      <div class="tab" data-p="report" onclick="showTab(this)">报告</div>
+    </div>
+    <div id="pv-transcript" class="panel active"><pre id="pre-transcript">（暂无数据）</pre></div>
+    <div id="pv-summary" class="panel"><pre id="pre-summary">（暂无数据）</pre></div>
+    <div id="pv-actions" class="panel"><pre id="pre-actions">（暂无数据）</pre></div>
+    <div id="pv-insights" class="panel"><pre id="pre-insights">（暂无数据）</pre></div>
+    <div id="pv-report" class="panel"><pre id="pre-report">（暂无数据）</pre></div>
+  </div>
+</div>
+
+<script>
+let currentMeeting = null;
+let busy = false;
+
+function setBusy(v){ busy=v; document.querySelectorAll('button').forEach(b=>{ if(!b.disabled) b.disabled=v; }); }
+function $(id){ return document.getElementById(id); }
+
+function fmtError(r){ return `请求失败 ${r.status}: ${r.statusText}`; }
+
+async function api(url, opts){
+  const r = await fetch(url, opts);
+  if(!r.ok){ let m = fmtError(r); try{ const j=await r.json(); m=j.detail||m; }catch(e){} throw new Error(m); }
+  return r.json();
+}
+
+async function createMeeting(){
+  const title=$('title').value.trim();
+  const parts=$('participants').value.split(/[,，]/).map(s=>s.trim()).filter(Boolean);
+  const language=$('language').value;
+  try{
+    setBusy(true); $('runStatus').textContent='创建中...';
+    const d=await api('/api/v1/meeting/start',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({title,participants:parts,language})});
+    currentMeeting=d.meeting_id;
+    $('meetingMeta').innerHTML=`会议ID: <b>${d.meeting_id}</b> · 状态 <b>${d.status}</b>`;
+    $('btnDemo').disabled=false;
+    $('runStatus').textContent='会议已创建，可运行演示或上传录音。';
+    clearResults();
+  }catch(e){ $('runStatus').textContent='✗ '+e.message; }
+  finally{ setBusy(false); }
+}
+
+async function runDemo(){
+  if(!currentMeeting){ $('runStatus').textContent='请先创建会议'; return; }
+  try{
+    setBusy(true); $('runStatus').textContent='⏳ 运行演示流程（DeepSeek 分析中，约 15-20 秒）...';
+    const d=await api(`/api/v1/meeting/${currentMeeting}/demo`,{method:'POST'});
+    $('runStatus').textContent='✅ 完成';
+    $('runMeta').textContent=`状态: ${d.status}`;
+    await loadResults();
+  }catch(e){ $('runStatus').textContent='✗ '+e.message; }
+  finally{ setBusy(false); }
+}
+
+async function uploadAudio(){
+  const f=$('audioFile').files[0];
+  if(!currentMeeting){ $('runStatus').textContent='请先创建会议'; return; }
+  if(!f){ return; }
+  const fd=new FormData(); fd.append('file', f);
+  try{
+    setBusy(true); $('runStatus').textContent=`⏳ 上传 ${f.name} 并后台处理（转写+分析，可能需要数分钟）...`;
+    const d=await api(`/api/v1/meeting/${currentMeeting}/upload`,{method:'POST',body:fd});
+    $('runStatus').textContent=`⏳ ${d.message} 后台处理中，稍后点击下方标签刷新结果。`;
+    $('runMeta').textContent=`文件 ${d.file_name} · ${(d.file_size_bytes/1024/1024).toFixed(2)} MB · status ${d.status}`;
+    // 轮询结果，直到处理完成
+    pollResults();
+  }catch(e){ $('runStatus').textContent='✗ '+e.message; }
+  finally{ setBusy(false); }
+}
+
+async function pollResults(){
+  for(let i=0;i<60;i++){
+    await new Promise(res=>setTimeout(res,4000));
+    try{
+      const d=await api(`/api/v1/meeting/${currentMeeting}/report`);
+      if(d && d.status){
+        $('runStatus').textContent=d.status==='completed'?'✅ 处理完成':'⏳ 处理中...';
+        if(d.status==='completed'){ loadResults(); return; }
+      }
+    }catch(e){}
+  }
+  $('runStatus').textContent='⏳ 轮询超时，请手动点击结果标签刷新。';
+}
+
+async function loadResults(){
+  if(!currentMeeting) return;
+  try{
+    const [t,s,a,i,r]=await Promise.all([
+      api(`/api/v1/meeting/${currentMeeting}/transcript`).catch(()=>null),
+      api(`/api/v1/meeting/${currentMeeting}/summary`).catch(()=>null),
+      api(`/api/v1/meeting/${currentMeeting}/actions`).catch(()=>null),
+      api(`/api/v1/meeting/${currentMeeting}/insights`).catch(()=>null),
+      api(`/api/v1/meeting/${currentMeeting}/report`).catch(()=>null),
+    ]);
+    renderTranscript(t); renderSummary(s); renderActions(a); renderInsights(i); renderReport(r);
+  }catch(e){}
+}
+
+function clearResults(){
+  ['transcript','summary','actions','insights','report'].forEach(k=>$('pre-'+k).textContent='（暂无数据）');
+}
+
+function renderTranscript(t){
+  const el=$('pre-transcript');
+  if(!t){ el.textContent='（无转写数据）'; return; }
+  const segs=(t.segments||[]).map(s=>
+    `<div class="seg"><span class="sp">${esc(s.speaker)}</span> <span class="ts">[${fmt(s.start)}s-${fmt(s.end)}s]</span>`+
+    `<div class="tx">${esc(s.text)}</div></div>`).join('');
+  el.innerHTML = `<div class="small">共 ${segs.length} 段 · 时长 ${fmt(t.duration_seconds)}s · 语言 ${t.language}</div>`+segs;
+}
+
+function renderSummary(s){
+  const el=$('pre-summary');
+  if(!s){ el.textContent='（无摘要数据）'; return; }
+  let h=`<b>${esc(s.title)}</b>`;
+  h+=`<div class="small">日期: ${esc(s.date)} · 参会: ${(s.participants||[]).map(esc).join(', ')}</div>`;
+  h+='<h3 style="font-size:13px;margin:12px 0 6px;color:var(--acc)">议题</h3>';
+  (s.topics||[]).forEach(tp=>{
+    h+=`<div class="seg"><b>${esc(tp.title)}</b><div class="small">参会: ${(tp.participants||[]).map(esc).join(', ')}</div>`+
+      `<div>${(tp.discussion_points||[]).map(p=>'• '+esc(p)).join('<br>')}</div>`+
+      `<div class="small">结论: ${esc(tp.conclusion||'')}</div></div>`;
+  });
+  if((s.decisions||[]).length){ h+='<h3 style="font-size:13px;margin:12px 0 6px;color:var(--acc)">决议</h3>'; (s.decisions||[]).forEach(d=>h+=`<div>✅ ${esc(d)}</div>`); }
+  if((s.next_steps||[]).length){ h+='<h3 style="font-size:13px;margin:12px 0 6px;color:var(--acc)">下一步</h3>'; (s.next_steps||[]).forEach(d=>h+=`<div>→ ${esc(d)}</div>`); }
+  el.innerHTML=h;
+}
+
+function renderActions(a){
+  const el=$('pre-actions');
+  if(!a){ el.textContent='（无待办数据）'; return; }
+  const rows=(a.action_items||[]).map(it=>
+    `<tr><td>${esc(it.task)}</td><td>${esc(it.assignee||'-')}</td><td>${esc(it.deadline||'-')}</td>`+
+    `<td><span class="pill p-${it.priority}">${esc(it.priority)}</span></td><td>${esc(it.status)}</td></tr>`).join('');
+  const sync=(a.sync_status||{});
+  el.innerHTML=`<table><tr><th>任务</th><th>负责人</th><th>截止</th><th>优先级</th><th>状态</th></tr>${rows}</table>`+
+    `<div class="small" style="margin-top:8px">同步: Jira ${esc(sync.jira)} · 飞书 ${esc(sync.feishu)}</div>`;
+}
+
+function renderInsights(ins){
+  const el=$('pre-insights');
+  if(!ins){ el.textContent='（无洞察数据）'; return; }
+  let h=`情绪: <b>${esc(ins.overall_sentiment)}</b> (${ins.sentiment_score}) · 效率分: <b>${ins.efficiency_score}</b>`;
+  if(ins.speaker_stats&&ins.speaker_stats.length){
+    h+='<h3 style="font-size:13px;margin:12px 0 6px;color:var(--acc)">发言分布</h3><table><tr><th>说话人</th><th>时长</th><th>占比</th><th>字数</th></tr>';
+    ins.speaker_stats.forEach(sp=>{
+      h+=`<tr><td>${esc(sp.speaker)}</td><td>${fmt(sp.duration_s)}s</td><td>${sp.percentage}%</td><td>${sp.word_count}</td></tr>`;
+    });
+    h+='</table>';
+  }
+  if(ins.keywords&&ins.keywords.length){ h+='<div style="margin-top:10px">'+(ins.keywords||[]).map(esc).map(k=>`<span class="badge">${k}</span>`).join('')+'</div>'; }
+  if(ins.suggestions&&ins.suggestions.length){
+    h+='<h3 style="font-size:13px;margin:12px 0 6px;color:var(--acc)">建议</h3>';
+    ins.suggestions.forEach(sg=>h+=`<div>💡 ${esc(sg)}</div>`);
+  }
+  if(ins.highlights&&ins.highlights.length){
+    h+='<h3 style="font-size:13px;margin:12px 0 6px;color:var(--acc)">亮点</h3>';
+    ins.highlights.forEach(sg=>h+=`<div>⭐ ${esc(sg)}</div>`);
+  }
+  el.innerHTML=h;
+}
+
+function renderReport(r){
+  const el=$('pre-report');
+  if(!r){ el.textContent='（无报告数据）'; return; }
+  el.textContent=JSON.stringify(r,null,2);
+}
+
+function showTab(el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('pv-'+el.dataset.p).classList.add('active');
+}
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmt(n){ return (Math.round(n*10)/10).toFixed(1); }
+</script>
+</body>
+</html>

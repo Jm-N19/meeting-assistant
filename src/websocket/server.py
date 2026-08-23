@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import time
 import uuid
 from datetime import datetime, timezone
@@ -26,8 +27,15 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from loguru import logger
 from pydantic import BaseModel
+
+from .. import __file__ as _src_pkg_file
+
+# 前端静态页面目录 (src/websocket/static)
+_STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(_src_pkg_file)), "websocket", "static")
 
 from ..graph.meeting_graph import run_meeting_pipeline
 from ..models.schemas import MeetingStatus
@@ -284,7 +292,10 @@ async def _send_results(
 
 @app.get("/")
 async def root():
-    """健康检查 — 返回系统状态和各 Agent 就绪信息"""
+    """根路径 — 服务前端页面(存在则返回页面,否则返回健康检查 JSON)"""
+    index = os.path.join(_STATIC_DIR, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
     return {
         "name": "多Agent智能会议助手",
         "version": "1.0.0",
@@ -299,6 +310,11 @@ async def root():
         "docs": "/docs",
         "websocket": "ws://localhost:8000/ws/meeting/{meeting_id}",
     }
+
+
+# 静态资源目录挂载(用于前端页面,若存在)
+if os.path.isdir(_STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 
 @app.post("/api/v1/meeting/start", status_code=201)
