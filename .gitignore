@@ -1,0 +1,38 @@
+# ===== 密钥与配置 =====
+# 本地环境变量(含 API Key,切勿提交!)
+.env
+.env.*
+!.env.example
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# ===== 虚拟环境 =====
+.venv/
+venv/
+env/
+
+# ===== 缓存 =====
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ===== 运行时产物 =====
+reports/
+data/
+*.log
+*.wav
+*.mp3
+
+# ===== 编辑器 / 系统 =====
+.idea/
+.vscode/
+.DS_Store
