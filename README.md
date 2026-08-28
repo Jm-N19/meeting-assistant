@@ -1,4 +1,4 @@
-# Python 版 - 多Agent智能会议助手
+# 多Agent智能会议助手
 
 > 使用 LangGraph + WhisperX + FastAPI 实现的完整版本
 
